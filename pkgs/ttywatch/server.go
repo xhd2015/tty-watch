@@ -92,6 +92,13 @@ func ServeSession(ctx context.Context, opts ServeOptions) error {
 		return err
 	}
 
+	// Resolve PTY agent child PID (direct child of this __serve__ process).
+	// Used by lifecycle probes so keep-alive serve PID is not mistaken for "agent live".
+	commandPID := 0
+	if child, err := firstChildPID(os.Getpid()); err == nil && child > 0 {
+		commandPID = child
+	}
+
 	entry := RegistryEntry{
 		SessionID:  opts.SessionID,
 		ListenAddr: listenAddr,
@@ -99,6 +106,7 @@ func ServeSession(ctx context.Context, opts ServeOptions) error {
 		CreatedAt:  time.Now().UTC().Format(time.RFC3339),
 		Command:    opts.Command,
 		Cwd:        cwd,
+		CommandPID: commandPID,
 	}
 	cfg := serveRegistryConfig(home, opts.RegistrySubdir)
 	if err := WriteRegistry(cfg, entry); err != nil {
@@ -131,6 +139,11 @@ func ServeSession(ctx context.Context, opts ServeOptions) error {
 		return ctx.Err()
 	case <-waitDone:
 	}
+
+	// Record durable agent-exit so probes need not re-scan process tables.
+	entry.CommandExited = true
+	entry.CommandExitedAt = time.Now().UTC().Format(time.RFC3339)
+	_ = WriteRegistry(cfg, entry)
 
 	if serveKeepAlive(opts) {
 		// Keep the ptywrap server and registry reachable after the PTY child exits

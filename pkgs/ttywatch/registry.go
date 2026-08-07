@@ -65,10 +65,19 @@ func registryPath(cfg RegistryConfig, sessionID string) string {
 type RegistryEntry struct {
 	SessionID  string   `json:"session_id"`
 	ListenAddr string   `json:"listen_addr"`
+	// PID is the __serve__ process (not the PTY agent child). Keep-alive may
+	// leave this alive after the agent exits.
 	PID        int      `json:"pid"`
 	CreatedAt  string   `json:"created_at"`
 	Command    []string `json:"command"`
 	Cwd        string   `json:"cwd,omitempty"`
+	// CommandPID is the PTY agent child (codex/grok/…). 0 when unknown.
+	CommandPID int `json:"command_pid,omitempty"`
+	// CommandExited is set true when the PTY child Wait returns (keep-alive
+	// serve may still be reachable). Preferred exit signal for lifecycle.
+	CommandExited bool `json:"command_exited,omitempty"`
+	// CommandExitedAt is RFC3339 when CommandExited became true (optional).
+	CommandExitedAt string `json:"command_exited_at,omitempty"`
 }
 
 // validateSessionID checks custom session id syntax: [a-zA-Z0-9][a-zA-Z0-9._-]*.
