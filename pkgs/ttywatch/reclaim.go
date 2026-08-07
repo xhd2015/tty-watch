@@ -9,6 +9,42 @@ import (
 	ptyclient "github.com/xhd2015/dot-pkgs/go-pkgs/shell/ptywrap/client"
 )
 
+// isSessionIDAlreadyInUse reports ReserveCustomSessionID "already in use" errors.
+func isSessionIDAlreadyInUse(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "already in use")
+}
+
+// shouldReclaimZombieForReserve reports whether a held id is safe to force-free
+// for re-reserve: agent command exited (command_exited / dead command_pid), or
+// legacy keep-alive with no live agent child of serve.
+func shouldReclaimZombieForReserve(cfg RegistryConfig, sessionID string) bool {
+	entry, err := ReadRegistry(cfg, sessionID)
+	if err != nil || entry == nil {
+		// Claim-only hold: reclaim is still appropriate.
+		return true
+	}
+	if entry.CommandExited {
+		return true
+	}
+	if entry.CommandPID > 0 && !processAlive(entry.CommandPID) {
+		return true
+	}
+	// Legacy registry without command_pid: serve alive but no direct children → zombie.
+	if entry.PID > 0 && processAlive(entry.PID) && entry.CommandPID == 0 {
+		if _, err := firstChildPID(entry.PID); err != nil {
+			return true // no child of serve
+		}
+	}
+	// Unreachable listen + leftover file: reclaim.
+	if entry.ListenAddr != "" && !tcpReachable(entry.ListenAddr) {
+		return true
+	}
+	return false
+}
+
 // ReclaimSessionID forcefully frees a session id held by a (possibly zombie)
 // keep-alive serve so the id can be re-reserved. Best-effort: delete via
 // ptywrap when reachable, terminate the serve PID (never self), then remove
