@@ -41,13 +41,20 @@ func ParseArgs(args []string) (Config, error) {
 	}
 
 	if ttywatch.IsServeSubcommand(args[0]) {
-		if len(args) < 3 {
-			return cfg, fmt.Errorf("serve: missing session id or command")
+		parsed, err := ttywatch.ParseServeArgv(args[1:])
+		if err != nil {
+			return cfg, err
 		}
 		cfg.Command = args[0]
 		cfg.Serve = &ServeOptions{
-			SessionID: args[1],
-			Command:   append([]string(nil), args[2:]...),
+			SessionID:      parsed.SessionID,
+			Command:        append([]string(nil), parsed.Command...),
+			Home:           parsed.Home,
+			RegistrySubdir: parsed.RegistrySubdir,
+			KeepAlive:      parsed.KeepAlive,
+			ExtraPaths:     append([]string(nil), parsed.ExtraPaths...),
+			CommandEnv:     append([]string(nil), parsed.CommandEnv...),
+			CommandUnset:   append([]string(nil), parsed.CommandUnset...),
 		}
 		return cfg, nil
 	}

@@ -4,8 +4,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02 h1:AgcIVYPa6XJnU3phs104wLj8l5GEththEw6+F79YsIY=
 github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02/go.mod h1:Q48J4R4DvxnHolD5P8pOtXigYlRuPLGl6moFx3ulM68=
-github.com/xhd2015/dot-pkgs/go-pkgs v0.0.89 h1:4PoY8CbRrLOv/dobJVIiL+/QhJw4NemRlTScvq02scc=
-github.com/xhd2015/dot-pkgs/go-pkgs v0.0.89/go.mod h1:9OHHDoNrbeV7HhPiPK4Je7nZ1DTCngMq3lUmB6JaU9k=
+github.com/xhd2015/dot-pkgs/go-pkgs v0.0.107 h1:3uDFtFSwtNZYimd3pxXo/PrjPPVa5qcSg+QfF7HwmTo=
+github.com/xhd2015/dot-pkgs/go-pkgs v0.0.107/go.mod h1:i2TjTqseI8WasHnumHlT9ybFGqJotKpa75JxBDVYfy4=
 github.com/xhd2015/less-flags v1.0.2 h1:VUYlyhmPQMEPDPh5OauAIPS3MAhNShIVZ3NbIObl9ps=
 github.com/xhd2015/less-flags v1.0.2/go.mod h1:HGGM7JrrfZm/RvmxBQT96jF916m9UQE8vELpejQaoIo=
 golang.org/x/sys v0.44.0 h1:ildZl3J4uzeKP07r2F++Op7E9B29JRUy+a27EibtBTQ=

@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/xhd2015/dot-pkgs/go-pkgs/shell/ptywrap"
@@ -21,6 +20,10 @@ type ServeOptions struct {
 	Cwd            string
 	ExtraPaths     []string
 	KeepAlive      bool
+	// CommandEnv is KEY=VALUE assignments merged into the PTY agent child environ.
+	CommandEnv []string
+	// CommandUnset is env keys removed from the PTY agent child environ before CommandEnv.
+	CommandUnset []string
 	// OnListening is invoked in a goroutine after the PTY session is created and
 	// the registry entry is written. ctx is cancelled when the serve session ends.
 	// listenAddr is the bound HTTP listen address; home and registrySubdir are the
@@ -28,11 +31,10 @@ type ServeOptions struct {
 	OnListening func(ctx context.Context, listenAddr, home, registrySubdir string)
 }
 
+// serveKeepAlive reports keep-alive from explicit opts only (policy B: no ambient
+// TTY_WATCH_KEEP_ALIVE).
 func serveKeepAlive(opts ServeOptions) bool {
-	if opts.KeepAlive {
-		return true
-	}
-	return strings.TrimSpace(os.Getenv(envTTYWatchKeepAlive)) == "1"
+	return opts.KeepAlive
 }
 
 // ServeSession runs the embedded ptywrap HTTP server until the command exits.
@@ -46,11 +48,11 @@ func ServeSession(ctx context.Context, opts ServeOptions) error {
 
 	home := opts.Home
 	if home == "" {
-		var err error
-		home, err = TTYWatchHome()
+		userHome, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
+		home = DefaultTTYWatchHome(userHome)
 	}
 	cwd := opts.Cwd
 	if cwd == "" {
@@ -62,8 +64,14 @@ func ServeSession(ctx context.Context, opts ServeOptions) error {
 	}
 
 	mgr := ptywrap.NewManager()
-	if extraPaths := serveExtraPaths(opts.ExtraPaths); len(extraPaths) > 0 {
-		mgr.Spawn.ExtraPaths = extraPaths
+	if len(opts.ExtraPaths) > 0 {
+		mgr.Spawn.ExtraPaths = append([]string(nil), opts.ExtraPaths...)
+	}
+	if len(opts.CommandEnv) > 0 {
+		mgr.Spawn.Env = append([]string(nil), opts.CommandEnv...)
+	}
+	if len(opts.CommandUnset) > 0 {
+		mgr.Spawn.Unset = append([]string(nil), opts.CommandUnset...)
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

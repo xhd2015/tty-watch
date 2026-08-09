@@ -20,10 +20,6 @@ const (
 	headlessRegistryTimeout = 15 * time.Second
 	// HeadlessWaitingLine is logged to stderr once during the SIGINT grace window.
 	HeadlessWaitingLine = "waiting for program to exit..."
-
-	envTTYWatchRegistrySubdir = "TTY_WATCH_REGISTRY_SUBDIR"
-	envTTYWatchExtraPaths     = "TTY_WATCH_EXTRA_PATHS"
-	envTTYWatchKeepAlive      = "TTY_WATCH_KEEP_ALIVE"
 )
 
 // HeadlessRunOptions configures a detached __serve__ child session.
@@ -41,10 +37,14 @@ type HeadlessRunOptions struct {
 	BinaryPath string
 	Cwd        string
 	ExtraPaths []string
-	// KeepAlive, when true, sets TTY_WATCH_KEEP_ALIVE so __serve__ stays alive
-	// after the PTY child exits (intentional keep-tty). Default false: serve
-	// exits shortly after the child so short attached runs leave no orphans.
+	// KeepAlive, when true, passes --keep-alive so __serve__ stays alive after
+	// the PTY child exits (intentional keep-tty). Default false: serve exits
+	// shortly after the child so short attached runs leave no orphans.
 	KeepAlive bool
+	// CommandEnv is KEY=VALUE assignments for the PTY agent child (not re-exec env).
+	CommandEnv []string
+	// CommandUnset is env keys removed from the PTY agent child environ.
+	CommandUnset []string
 }
 
 // HeadlessRunResult is returned after the detached serve child registers.
@@ -109,11 +109,11 @@ func HeadlessRun(ctx context.Context, opts HeadlessRunOptions) (*HeadlessRunResu
 
 	home := opts.Home
 	if home == "" {
-		var homeErr error
-		home, homeErr = TTYWatchHome()
+		userHome, homeErr := os.UserHomeDir()
 		if homeErr != nil {
 			return nil, homeErr
 		}
+		home = DefaultTTYWatchHome(userHome)
 	}
 	cfg := registryConfigFor(home, opts.RegistrySubdir)
 
@@ -142,14 +142,19 @@ func HeadlessRun(ctx context.Context, opts HeadlessRunOptions) (*HeadlessRunResu
 	release()
 
 	serveToken := ServeSubcommand(opts.Command)
-	remainder := append([]string{serveToken, sessionID}, opts.Command...)
+	// Pass resolved home so the serve child does not depend on ambient TTY_WATCH_*.
+	serveOpts := opts
+	if serveOpts.Home == "" {
+		serveOpts.Home = home
+	}
+	remainder := append([]string{serveToken}, BuildServeArgv(sessionID, serveOpts)...)
 	fullArgv, err := resolved.Argv(remainder...)
 	if err != nil {
 		clearSessionClaim(cfg, sessionID)
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, fullArgv[0], fullArgv[1:]...)
-	cmd.Env = serveChildEnv(os.Environ(), opts)
+	cmd.Env = BuildServeChildEnv(os.Environ(), serveOpts)
 	cmd.Stdin = nil
 	cmd.Stdout = nil
 	// Capture serve-child stderr so registry timeouts can surface real failures
@@ -219,80 +224,10 @@ func registryConfigFor(home, subdir string) RegistryConfig {
 	return RegistryConfig{Home: home, Subdir: subdir}
 }
 
-func serveChildEnv(base []string, opts HeadlessRunOptions) []string {
-	env := append([]string(nil), base...)
-	if opts.Home != "" {
-		env = setEnvVar(env, envTTYWatchHome, opts.Home)
-	}
-	if opts.RegistrySubdir != "" {
-		env = setEnvVar(env, envTTYWatchRegistrySubdir, opts.RegistrySubdir)
-	} else {
-		// Clear ambient TTY_WATCH_REGISTRY_SUBDIR (e.g. grok-tty-registry from
-		// agent-run) so the serve child writes the same default "registry"
-		// subdir that HeadlessRun's WaitForRegistryEntry polls. Mismatch makes
-		// the parent time out and SIGKILL a healthy serve process.
-		env = withoutEnvVar(env, envTTYWatchRegistrySubdir)
-	}
-	if len(opts.ExtraPaths) > 0 {
-		env = setEnvVar(env, envTTYWatchExtraPaths, strings.Join(opts.ExtraPaths, string(os.PathListSeparator)))
-	}
-	if opts.KeepAlive {
-		env = setEnvVar(env, envTTYWatchKeepAlive, "1")
-	} else {
-		// Explicitly clear ambient TTY_WATCH_KEEP_ALIVE so a parent process that
-		// exported keep-alive does not force detached serve children to linger.
-		env = withoutEnvVar(env, envTTYWatchKeepAlive)
-	}
-	return env
-}
-
-func withoutEnvVar(env []string, key string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env))
-	for _, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			continue
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-func setEnvVar(env []string, key, value string) []string {
-	prefix := key + "="
-	out := make([]string, 0, len(env)+1)
-	replaced := false
-	for _, entry := range env {
-		if strings.HasPrefix(entry, prefix) {
-			out = append(out, prefix+value)
-			replaced = true
-			continue
-		}
-		out = append(out, entry)
-	}
-	if !replaced {
-		out = append(out, prefix+value)
-	}
-	return out
-}
-
+// serveRegistryConfig resolves registry location from explicit opts only
+// (policy B: no ambient TTY_WATCH_REGISTRY_SUBDIR).
 func serveRegistryConfig(home, registrySubdir string) RegistryConfig {
-	subdir := registrySubdir
-	if subdir == "" {
-		subdir = os.Getenv(envTTYWatchRegistrySubdir)
-	}
-	return registryConfigFor(home, subdir)
-}
-
-func serveExtraPaths(opts []string) []string {
-	if len(opts) > 0 {
-		return append([]string(nil), opts...)
-	}
-	raw := os.Getenv(envTTYWatchExtraPaths)
-	if raw == "" {
-		return nil
-	}
-	return strings.Split(raw, string(os.PathListSeparator))
+	return registryConfigFor(home, registrySubdir)
 }
 
 func exitStatusFromWait(err error) error {

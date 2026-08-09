@@ -51,10 +51,16 @@ type KillOptions struct {
 	Session string
 }
 
-// ServeOptions holds internal reexec serve parameters.
+// ServeOptions holds internal reexec serve parameters (flag-only wire).
 type ServeOptions struct {
-	SessionID string
-	Command   []string
+	SessionID      string
+	Command        []string
+	Home           string
+	RegistrySubdir string
+	KeepAlive      bool
+	ExtraPaths     []string
+	CommandEnv     []string
+	CommandUnset   []string
 }
 
 // SendMode is the exclusive mode for tty-watch send.
