@@ -1683,6 +1683,7 @@ func waitWatchDetachGrokModesPostDetachProbe(t *testing.T, req *Request, key []b
 			time.Sleep(400 * time.Millisecond)
 			postDetach = readPTYBounded(ptmx, 1500*time.Millisecond)
 			if postDetach == "" {
+				_, _ = ptmx.Write([]byte(probe))
 				time.Sleep(300 * time.Millisecond)
 				postDetach = readPTYBounded(ptmx, 1*time.Second)
 			}
