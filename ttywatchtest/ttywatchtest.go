@@ -1813,8 +1813,13 @@ func attachGoStdoutWriterNormalizesRawTTY(src string) (bool, string) {
 	if !strings.Contains(body, "a.rawTTY") {
 		return false, "attachStdoutWriter.Write missing rawTTY branch"
 	}
+	// Direct call, or delegated writeRawTTY that normalizes (preferred: cross-chunk collapse).
 	if strings.Contains(body, "normalizeTTYOutput") {
 		return true, "attachStdoutWriter.Write calls normalizeTTYOutput for raw TTY output"
+	}
+	if strings.Contains(body, "writeRawTTY") && strings.Contains(src, "func (a *attachStdoutWriter) writeRawTTY") &&
+		strings.Contains(src, "normalizeTTYOutput") {
+		return true, "attachStdoutWriter.Write delegates to writeRawTTY which calls normalizeTTYOutput"
 	}
 	return false, "attachStdoutWriter.Write passes LF-only bytes unchanged on raw TTY (missing normalizeTTYOutput)"
 }
