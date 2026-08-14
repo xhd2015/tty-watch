@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: golang:1.25.10
+    env:
+      # Container checkout is often not a trusted git dir; go build VCS stamping
+      # then fails with "error obtaining VCS status: exit status 128".
+      GOFLAGS: -buildvcs=false
     steps:
       - uses: actions/checkout@v4
       - name: Go test
