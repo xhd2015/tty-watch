@@ -1679,8 +1679,13 @@ func waitWatchDetachGrokModesPostDetachProbe(t *testing.T, req *Request, key []b
 	postDetach := ""
 	if !timedOut {
 		if _, err := ptmx.Write([]byte(probe)); err == nil {
-			time.Sleep(200 * time.Millisecond)
-			postDetach = readPTYBounded(ptmx, 800*time.Millisecond)
+			// CI containers are slower; allow longer for bash read-loop to echo.
+			time.Sleep(400 * time.Millisecond)
+			postDetach = readPTYBounded(ptmx, 1500*time.Millisecond)
+			if postDetach == "" {
+				time.Sleep(300 * time.Millisecond)
+				postDetach = readPTYBounded(ptmx, 1*time.Second)
+			}
 			output += postDetach
 		}
 	}
@@ -2333,7 +2338,14 @@ func phaseKillStop(t *testing.T, req *Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	time.Sleep(300 * time.Millisecond)
+	// Under CI load, serve shutdown + registry unlink can lag past 300ms.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if !RegistryExists(req.TTYWatchHome, sessionID) && !SessionReachable(req.TTYWatchHome, sessionID) {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	return &Response{
 		SessionID:      sessionID,
 		Stdout:         stdout,

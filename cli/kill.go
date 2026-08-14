@@ -40,9 +40,19 @@ func runKill(cfg Config) error {
 		}
 		if processAlive(entry.PID) {
 			_ = syscall.Kill(entry.PID, syscall.SIGKILL)
+			// Brief wait so the serve process releases the registry path.
+			deadline = time.Now().Add(500 * time.Millisecond)
+			for time.Now().Before(deadline) && processAlive(entry.PID) {
+				time.Sleep(50 * time.Millisecond)
+			}
 		}
 	}
 
 	RemoveRegistryIfMatch(home, sessionID, entry.ListenAddr, entry.PID)
+	// Force-remove when the session is no longer reachable (IfMatch can no-op if
+	// the serve process rewrote the entry mid-shutdown under load).
+	if !tcpReachable(entry.ListenAddr) {
+		RemoveRegistry(home, sessionID)
+	}
 	return nil
 }
