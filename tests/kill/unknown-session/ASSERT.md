@@ -1,22 +1,16 @@
 ## Expected
 
-- Non-zero exit code.
-- Combined output mentions session not found (or similar).
+- Exit code 0 (idempotent kill when registry entry is already gone).
 
 ```go
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func Assert(t *testing.T, req *Request, resp *Response, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertNonZeroExit(t, resp)
-	lower := strings.ToLower(resp.Combined)
-	if !strings.Contains(lower, "session") && !strings.Contains(lower, "not found") {
-		t.Fatalf("expected session-not-found error, got combined %q", resp.Combined)
+	if resp.ExitCode != 0 {
+		t.Fatalf("kill missing expected exit 0, got %d combined %q", resp.ExitCode, resp.Combined)
 	}
 }
 ```

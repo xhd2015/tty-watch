@@ -126,3 +126,62 @@ func TestScrollbackToScreenText_singlePassMatchesGoodFixture(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderSnapshotOutput_preservesMidSpanBlankLines(t *testing.T) {
+	// CRLF matches PTY ONLCR output from printf "...\n" under a real slave TTY.
+	scrollback := "\x1b[2J\x1b[Hline1\r\n\r\nline2\r\n"
+	out := renderSnapshotOutput("", scrollback, 80, 24)
+	if !strings.Contains(out, "line1\n\nline2") {
+		t.Fatalf("snapshot must keep mid-span blank between line1 and line2, got %q", out)
+	}
+}
+
+func TestRenderSnapshotOutput_statusLikeSparseDoesNotGlueShortRows(t *testing.T) {
+	// Use CRLF like a real PTY (ONLCR) so rows start at column 0.
+	var b strings.Builder
+	b.WriteString("\x1b[2J\x1b[H")
+	b.WriteString(" codelens  test/id          DEGRADED         16:00:00  refresh 2s\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(" server   tcp 2/2\r\n")
+	b.WriteString(" worker   etcd 3\r\n")
+	b.WriteString(" database ok\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(" pause    sticky on\r\n")
+	b.WriteString(" quiet    00:00-04:00\r\n")
+	b.WriteString(" optimize enabled\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(" activity idle\r\n")
+	b.WriteString("\r\n")
+	b.WriteString(" q quit   r refresh\r\n")
+
+	out := renderSnapshotOutput("", b.String(), 80, 24)
+	for _, bad := range []string{"2sserver", "okpause", "onquiet", "enabledactivity"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("short status rows must not glue (%q present), got %q", bad, out)
+		}
+	}
+	for _, want := range []string{"server   tcp", "pause    sticky on", "quiet    00:00-04:00", "q quit"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in status-like snapshot: %q", want, out)
+		}
+	}
+	if !(strings.Contains(out, "refresh 2s\n\n") && strings.Contains(out, "server   tcp")) {
+		t.Fatalf("expected blank after header before server block, got %q", out)
+	}
+}
+
+func TestMergeSnapshotWrappedLinesCols_fullWidthMerges(t *testing.T) {
+	prev := strings.Repeat("x", 79)
+	next := "yyyy"
+	out := mergeSnapshotWrappedLinesCols([]string{prev, next}, 80)
+	if len(out) != 1 || out[0] != prev+next {
+		t.Fatalf("full-width wrap must merge, got %#v", out)
+	}
+}
+
+func TestMergeSnapshotWrappedLinesCols_shortRowsDoNotMerge(t *testing.T) {
+	out := mergeSnapshotWrappedLinesCols([]string{" pause    sticky on", " quiet    00:00-04:00"}, 80)
+	if len(out) != 2 {
+		t.Fatalf("short consecutive rows must stay separate, got %#v", out)
+	}
+}

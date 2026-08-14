@@ -20,7 +20,8 @@ func runKill(cfg Config) error {
 	}
 	entry, err := ReadRegistry(home, sessionID)
 	if err != nil {
-		return err
+		// Idempotent: child may have already exited and grace-pruned the registry.
+		return nil
 	}
 
 	if !tcpReachable(entry.ListenAddr) {

@@ -298,14 +298,28 @@ func renderVTStateToText(vt vt10x.Terminal, cols, rows int) ([]byte, bool) {
 	vt.Lock()
 	defer vt.Unlock()
 
-	var lines []string
+	// Collect every cell row, then keep mid-span blanks (between first and last
+	// non-empty). Leading/trailing empty rows are trimmed so sparse TUI layouts
+	// (status dashboards, intentional \n\n) survive snapshot without 24-line padding.
+	raw := make([]string, 0, rows)
 	for y := 0; y < rows; y++ {
 		line := normalizeSnapshotPrintableLine(renderSnapshotTextLine(vt, cols, y))
+		raw = append(raw, line)
+	}
+	first, last := -1, -1
+	for i, line := range raw {
 		if line != "" {
-			lines = append(lines, line)
+			if first < 0 {
+				first = i
+			}
+			last = i
 		}
 	}
-	lines = mergeSnapshotWrappedLines(lines)
+	var lines []string
+	if first >= 0 {
+		lines = raw[first : last+1]
+	}
+	lines = mergeSnapshotWrappedLinesCols(lines, cols)
 	// Drop short non-UI leftovers left by partial CUP redraws (e.g. grok
 	// changelog boot "Quit q" on the row under the ctrl+q menu after \033[K
 	// only cleared the menu row). Keeps denser conversation lines intact.
@@ -349,6 +363,16 @@ func isLiveScreenGhostLine(line string) bool {
 }
 
 func shouldMergeSnapshotWrappedLine(prev, next string) bool {
+	return shouldMergeSnapshotWrappedLineCols(prev, next, 80)
+}
+
+// shouldMergeSnapshotWrappedLineCols joins only hard-wraps: prev must look
+// full-width (near cols). Short consecutive status rows like "pause ... on"
+// + "quiet ..." must not merge even when letter-to-lowercase would match.
+func shouldMergeSnapshotWrappedLineCols(prev, next string, cols int) bool {
+	if cols <= 0 {
+		cols = 80
+	}
 	prev = strings.TrimRight(prev, " \t")
 	next = strings.TrimLeft(next, " \t")
 	if prev == "" || next == "" {
@@ -356,6 +380,10 @@ func shouldMergeSnapshotWrappedLine(prev, next string) bool {
 	}
 	prevRunes := []rune(prev)
 	nextRunes := []rune(next)
+	// Not a terminal wrap if previous row is far from full width.
+	if len(prevRunes) < cols-1 {
+		return false
+	}
 	last := prevRunes[len(prevRunes)-1]
 	first := nextRunes[0]
 	if (last >= 'a' && last <= 'z' || last >= 'A' && last <= 'Z') && first >= 'a' && first <= 'z' {
@@ -365,13 +393,17 @@ func shouldMergeSnapshotWrappedLine(prev, next string) bool {
 }
 
 func mergeSnapshotWrappedLines(lines []string) []string {
+	return mergeSnapshotWrappedLinesCols(lines, 80)
+}
+
+func mergeSnapshotWrappedLinesCols(lines []string, cols int) []string {
 	if len(lines) == 0 {
 		return lines
 	}
 	out := []string{lines[0]}
 	for i := 1; i < len(lines); i++ {
 		line := lines[i]
-		if shouldMergeSnapshotWrappedLine(out[len(out)-1], line) {
+		if shouldMergeSnapshotWrappedLineCols(out[len(out)-1], line, cols) {
 			out[len(out)-1] = strings.TrimRight(out[len(out)-1], " \t") + strings.TrimLeft(line, " \t")
 			continue
 		}

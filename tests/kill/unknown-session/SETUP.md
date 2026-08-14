@@ -1,10 +1,10 @@
 # Scenario
 
-**Feature**: kill on unknown session id fails
+**Feature**: kill on unknown session id is idempotent (exit 0)
 
 ```
 # missing registry entry
-tty-watch kill session-99999 -> error
+tty-watch kill session-99999 -> exit 0
 ```
 
 ```go

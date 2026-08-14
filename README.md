@@ -52,8 +52,8 @@ tty-watch send <session-id> --query-cursor [--json]
 | `list` | Live sessions (id, uptime, watch/attach counts, command). |
 | `watch` | Read-only observer (PTY output to stdout; no stdin inject). |
 | `attach` | Multi-writer attach (input + resize). |
-| `snapshot` | Sanitized scrollback / screen text for asserts. |
-| `kill` | Tear down session and registry entry. |
+| `snapshot` | Sanitized scrollback / screen text for asserts (keeps mid-span blank rows; only merges hard-wraps). |
+| `kill` | Tear down session and registry entry (idempotent if already gone). |
 | `send` | Inject text or SGR mouse / host cursor query (see below). |
 
 Environment:
