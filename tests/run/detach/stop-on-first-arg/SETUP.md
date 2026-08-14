@@ -8,9 +8,14 @@ harness -> tty-watch run --detach sh -c 'echo --not-a-flag' -> watch shows token
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-detach-stop-on-first-arg"
 	req.RunCommand = []string{"sh", "-c", "echo --not-a-flag"}
 	return nil

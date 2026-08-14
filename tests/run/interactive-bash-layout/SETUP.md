@@ -24,9 +24,14 @@ Carriage-return redraw must keep `bash:` errors at the left margin; stripping `\
 far right.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-interactive-bash-layout"
 	return nil
 }

@@ -21,9 +21,14 @@ tty-watch list -> all *.json ids (custom + session-N)
 3. Detached flows use Ctrl-] (`\x1d`); duplicate/stale/invalid flows use direct CLI invocation where noted.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.CustomSessionID == "" {
 		req.CustomSessionID = "test-with-grok"
 	}

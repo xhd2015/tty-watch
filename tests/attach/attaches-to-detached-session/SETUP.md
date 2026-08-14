@@ -8,9 +8,14 @@ harness -> run sleep (detached) -> tty-watch attach <id> -> ATTACH_LIVE_MARKER o
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "attach-detached-session"
 	req.AttachProbe = "2s"
 	return nil

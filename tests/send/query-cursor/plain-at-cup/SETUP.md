@@ -8,9 +8,14 @@ detached printf '\033[5;3H'; sleep -> tty-watch send <id> --query-cursor
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	// Plain stdout (not JSON); CUP fixture is default in phaseSendQueryCursor.
 	req.JSON = false
 	return nil

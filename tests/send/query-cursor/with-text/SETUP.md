@@ -8,9 +8,14 @@ cli.Main(["send", "sess-flags", "--query-cursor", "hello"], …)
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "cli"
 	req.Args = []string{"send", "sess-flags", "--query-cursor", "hello"}
 	return nil

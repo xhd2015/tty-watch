@@ -21,9 +21,14 @@ source-order checks on pkgs/ttywatch/*.go (observer/attach)
 3. Assert checks wire bytes, column-zero layout, or source-order flags.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	// Unit leaves are pure helpers / source checks: no live session required.
 	// encode-sgr-click sets Mode=encode; other leaves set Phase in their own Setup.
 	if req.Mode == "" && req.Phase == "" {

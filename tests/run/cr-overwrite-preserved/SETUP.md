@@ -10,9 +10,14 @@ PTY programs and interactive shells rely on `\r` for cursor positioning; strippi
 `\r` smears prompts and error lines across the terminal width.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-cr-overwrite"
 	return nil
 }

@@ -10,9 +10,14 @@ tty-watch run bash -c 'echo yes' -> PTY output:
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-bash-c-exit-marker-column-zero"
 	req.RunCommand = []string{"bash", "-c", "echo yes"}
 	return nil

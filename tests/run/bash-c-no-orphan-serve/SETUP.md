@@ -16,9 +16,14 @@ This also contributes to registry-lock / session-id races that make subsequent
 `tty-watch run bash -c "echo yes"` hang forever on a shared `TTY_WATCH_HOME`.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-bash-c-no-orphan-serve"
 	req.CustomSessionID = "bash-c-no-orphan"
 	req.RunCommand = []string{"bash", "-c", "echo yes"}

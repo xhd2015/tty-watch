@@ -179,6 +179,16 @@ func TestMergeSnapshotWrappedLinesCols_fullWidthMerges(t *testing.T) {
 	}
 }
 
+func TestMergeSnapshotWrappedLinesCols_longSoftWrapWhenColsInflated(t *testing.T) {
+	// Content wrapped at 80 but snapshot cols reported as 100.
+	prev := "WIDE_LINE_MARKER_" + strings.Repeat("x", 63) // 80 runes
+	next := strings.Repeat("x", 12)
+	out := mergeSnapshotWrappedLinesCols([]string{prev, next}, 100)
+	if len(out) != 1 || out[0] != prev+next {
+		t.Fatalf("long soft-wrap must merge when cols inflated, got %#v", out)
+	}
+}
+
 func TestMergeSnapshotWrappedLinesCols_shortRowsDoNotMerge(t *testing.T) {
 	out := mergeSnapshotWrappedLinesCols([]string{" pause    sticky on", " quiet    00:00-04:00"}, 80)
 	if len(out) != 2 {

@@ -8,9 +8,14 @@ harness seeds session-stale-1 -> tty-watch send session-stale-1 "hi" -> exit 1, 
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "send-stale"
 	req.SendMessage = "hi"
 	return nil

@@ -13,9 +13,14 @@ second run. `true` stands in for a codex session that exits; `sleep 600` stands 
 for the second long-lived codex session still running when list is queried.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "list-second-run-after-exit"
 	return nil
 }

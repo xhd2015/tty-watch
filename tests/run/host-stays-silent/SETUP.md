@@ -8,9 +8,14 @@ harness PTY -> tty-watch sleep -> detach -> no host session id lines
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-silent"
 	req.RunCommand = []string{"sleep", "120"}
 	return nil

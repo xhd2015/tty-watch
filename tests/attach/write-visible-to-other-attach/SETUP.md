@@ -8,9 +8,14 @@ harness -> detached cat -> attach A + attach B -> A writes -> B output has marke
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "attach-visible-to-other"
 	req.AttachInput = "ATTACH_WRITE_MARKER_A"
 	return nil

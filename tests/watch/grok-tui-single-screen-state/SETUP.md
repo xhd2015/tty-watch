@@ -12,9 +12,14 @@ Regression from `renderObserverFrame`: each redraw is converted to plain text an
 instead of the latest screen state. Pipe capture must reflect one coherent screen.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-grok-tui-single-screen-state"
 	req.WatchProbe = "3s"
 	return nil

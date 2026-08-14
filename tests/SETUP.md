@@ -47,10 +47,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xhd2015/doctest/session"
+
 	"github.com/xhd2015/tty-watch/ttywatchtest"
 )
 
-func Setup(t *testing.T, req *Request) error {
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skipf("skipping: go not found in PATH")
 	}

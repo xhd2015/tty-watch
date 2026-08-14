@@ -12,9 +12,14 @@ Late writer attach replays `\x1b[?1049l\x1b[0m` scrollback prefix, which on a
 cleared terminal paints many blank lines before `yes`.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-echo-clean-output"
 	req.RunCommand = []string{"echo", "yes"}
 	return nil

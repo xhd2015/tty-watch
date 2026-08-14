@@ -13,9 +13,14 @@ argv [codex run --model gpt-5.5 medium]
 1. Set `req.Argv` to a typical codex invocation with `--model` flag.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Argv = []string{"codex", "run", "--model", "gpt-5.5", "medium"}
 	return nil
 }

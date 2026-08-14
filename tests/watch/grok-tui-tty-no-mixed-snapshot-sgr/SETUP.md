@@ -13,9 +13,14 @@ through raw. The observer terminal never enters alternate-screen mode, so true-c
 SGR sequences render as visible `[38;2;...` garbage in the input box (user screenshot).
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-grok-tui-tty-no-mixed-snapshot-sgr"
 	req.WatchProbe = "3s"
 	return nil

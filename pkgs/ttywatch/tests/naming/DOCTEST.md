@@ -73,6 +73,8 @@ doctest test -v ./pkgs/ttywatch/tests/naming/full-argv-codex
 import (
 	"testing"
 
+	"github.com/xhd2015/doctest/session"
+
 	"github.com/xhd2015/tty-watch/pkgs/ttywatch"
 )
 
@@ -85,8 +87,9 @@ type Response struct {
 	ServeSubcommand string
 }
 
-func Run(t *testing.T, req *Request) (*Response, error) {
+func Run(t *testing.T, d *session.Doctest, req *Request) (*Response, error) {
 	t.Helper()
+	_ = d
 	if len(req.Argv) == 0 {
 		t.Fatal("req.Argv must be set by leaf Setup")
 	}

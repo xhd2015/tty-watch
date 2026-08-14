@@ -20,9 +20,14 @@ cli.Main(["-h"] | [] | ["nope"], stdin, stdout, stderr) -> error + streams
 3. Assert `resp.Err` and stdout/stderr content.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "cli"
 	return nil
 }

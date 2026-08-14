@@ -125,6 +125,8 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/xhd2015/doctest/session"
 	"time"
 
 	"github.com/xhd2015/tty-watch/cli"
@@ -221,8 +223,9 @@ func errMsgOf(err error) string {
 }
 
 // Run executes the behavior under test.
-func Run(t *testing.T, req *Request) (*Response, error) {
+func Run(t *testing.T, d *session.Doctest, req *Request) (*Response, error) {
 	t.Helper()
+	_ = d
 	mode := req.Mode
 	switch mode {
 	case "encode":

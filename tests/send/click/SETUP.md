@@ -24,9 +24,14 @@ tty-watch send <id> --click --row R --col C [--mouse B] [--no-release] [--json]
 2. Validation leaves set `Phase=send-click-validation` with incomplete/illegal flags.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Click = true
 	return nil
 }

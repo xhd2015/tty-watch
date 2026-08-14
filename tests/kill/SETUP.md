@@ -13,9 +13,14 @@ tty-watch kill <id> -> DELETE ptywrap session -> SIGTERM owner -> remove registr
 - `prunes-unreachable` seeds a stale registry entry with dead listen addr.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.Bin == "" {
 		t.Fatalf("kill setup: tty-watch binary not built")
 	}

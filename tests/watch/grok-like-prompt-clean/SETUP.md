@@ -13,9 +13,14 @@ session: grok enters the alternate screen (`\x1b[?1049h`) and toggles cursor vis
 not dump raw PTY escape sequences into the observer terminal.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-grok-like-prompt"
 	req.WatchProbe = "2s"
 	return nil

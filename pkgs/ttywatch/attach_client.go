@@ -127,11 +127,17 @@ type attachStdoutWriter struct {
 	w       io.Writer
 	rawTTY  bool
 	lineBuf []byte
+	// rawPend holds a short unflushed suffix so cross-chunk
+	// "\r\n" + "\r\n[Terminal exited]" can collapse to one break.
+	rawPend []byte
 }
 
 func (a *attachStdoutWriter) Write(p []byte) (int, error) {
 	if bytes.Equal(p, altScreenExitPrefix) {
 		debugLogf("attachStdoutWriter alt-screen-exit-prefix dropped rawTTY=%v", a.rawTTY)
+		if err := a.flushRawPend(); err != nil {
+			return 0, err
+		}
 		if _, err := a.w.Write([]byte{'\n'}); err != nil {
 			return 0, err
 		}
@@ -140,9 +146,7 @@ func (a *attachStdoutWriter) Write(p []byte) (int, error) {
 	}
 	if a.rawTTY {
 		debugLogBytes("attachStdoutWriter rawTTY in", p)
-		out := normalizeTTYOutput(p)
-		debugLogBytes("attachStdoutWriter rawTTY out", out)
-		if _, err := a.w.Write(out); err != nil {
+		if err := a.writeRawTTY(p); err != nil {
 			return 0, err
 		}
 		return len(p), nil
@@ -155,6 +159,57 @@ func (a *attachStdoutWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// writeRawTTY joins pending bytes so exit-marker blank collapse sees full lines.
+// Only trailing CR/LF (≤4 bytes) are held — never content — so live TUIs stream promptly.
+func (a *attachStdoutWriter) writeRawTTY(p []byte) error {
+	buf := append(append([]byte{}, a.rawPend...), p...)
+	a.rawPend = nil
+	if bytes.Contains(buf, []byte("[Terminal exited]")) {
+		out := normalizeTTYOutput(buf)
+		debugLogBytes("attachStdoutWriter rawTTY out", out)
+		_, err := a.w.Write(out)
+		return err
+	}
+	// Hold only a trailing run of CR/LF that might glue to "\r\n[Terminal exited]".
+	hold := 0
+	for hold < len(buf) && hold < 4 {
+		c := buf[len(buf)-1-hold]
+		if c == '\r' || c == '\n' {
+			hold++
+			continue
+		}
+		break
+	}
+	writeN := len(buf) - hold
+	if writeN > 0 {
+		out := normalizeTTYOutput(buf[:writeN])
+		debugLogBytes("attachStdoutWriter rawTTY out", out)
+		if _, err := a.w.Write(out); err != nil {
+			return err
+		}
+	}
+	if hold > 0 {
+		a.rawPend = append([]byte{}, buf[writeN:]...)
+	}
+	return nil
+}
+
+func (a *attachStdoutWriter) flushRawPend() error {
+	if len(a.rawPend) == 0 {
+		return nil
+	}
+	out := normalizeTTYOutput(a.rawPend)
+	a.rawPend = nil
+	debugLogBytes("attachStdoutWriter rawTTY flush", out)
+	_, err := a.w.Write(out)
+	return err
+}
+
+// Flush emits any held rawTTY pending bytes (used when the relay closes).
+func (a *attachStdoutWriter) Flush() error {
+	return a.flushRawPend()
+}
+
 func normalizeCRLF(b []byte) []byte {
 	b = bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
 	b = bytes.ReplaceAll(b, []byte("\r"), []byte("\n"))
@@ -165,6 +220,10 @@ func normalizeCRLF(b []byte) []byte {
 // are expanded to CRLF so the cursor returns to column 0 after each line; without
 // CR, a short line like "yes" leaves the cursor at column 3 and the next line
 // appears indented. Standalone carriage returns are preserved for in-place redraws.
+//
+// Also collapses a blank line immediately before "[Terminal exited]": ptywrap's
+// exit marker is "\r\n[Terminal exited]", which doubles the break when the child
+// already ended with CRLF (want "yes\r\n[Terminal exited]\r\n").
 func normalizeTTYOutput(b []byte) []byte {
 	if len(b) == 0 {
 		return b
@@ -182,7 +241,21 @@ func normalizeTTYOutput(b []byte) []byte {
 		}
 		out.WriteString("\r\n")
 	}
-	return out.Bytes()
+	return collapseBlankBeforeExitMarker(out.Bytes())
+}
+
+func collapseBlankBeforeExitMarker(b []byte) []byte {
+	const marker = "[Terminal exited]"
+	for {
+		// After CRLF expansion: "\r\n\r\n[Terminal exited]" → "\r\n[Terminal exited]"
+		n := bytes.ReplaceAll(b, []byte("\r\n\r\n"+marker), []byte("\r\n"+marker))
+		// Also handle LF-only residual (defensive).
+		n = bytes.ReplaceAll(n, []byte("\n\n"+marker), []byte("\n"+marker))
+		if bytes.Equal(n, b) {
+			return n
+		}
+		b = n
+	}
 }
 
 func (a *attachStdoutWriter) writePipeCapture(p []byte) (int, error) {

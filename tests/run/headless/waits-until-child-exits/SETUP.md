@@ -8,9 +8,14 @@ harness pipe -> tty-watch run --headless true -> wait -> registry pruned
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-headless-waits-until-child-exits"
 	req.RunCommand = []string{"true"}
 	return nil

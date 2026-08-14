@@ -13,9 +13,14 @@ tty-watch watch <id> -> WS attach_mode=observer -> stdout bytes unchanged
 - `watch-stream` uses a looping echo command for deterministic markers.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.Bin == "" {
 		t.Fatalf("watch setup: tty-watch binary not built")
 	}

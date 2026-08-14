@@ -14,9 +14,14 @@ starts mid-warning (`//developers.openai.com/...`), stacks MCP boot lines, and l
 `[<row;col;23M` fragments.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "snapshot-codex-cursor-drawn-mcp-boot"
 	return nil
 }

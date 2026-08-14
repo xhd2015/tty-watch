@@ -63,9 +63,14 @@ tty-watch send <id> --query-cursor [--json]
 `ESC [ < btn ; col+1 ; row+1 M` then if release `ESC [ < btn ; col+1 ; row+1 m`.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	// Contract Mode=cli leaves validate flags without a live session.
 	// E2E inject/query leaves need Bin from root Setup.
 	if req.Mode == "" && req.Bin == "" {

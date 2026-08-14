@@ -8,9 +8,14 @@ harness SIGINT -> tty-watch run --headless sh trap -> child exit 0 -> registry c
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-headless-ctrl-c-forwards-exits"
 	req.RunCommand = []string{"sh", "-c", "trap 'exit 0' INT; sleep 300"}
 	return nil

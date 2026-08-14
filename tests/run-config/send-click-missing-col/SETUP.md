@@ -15,10 +15,13 @@ cli.Run(Config{
 import (
 	"testing"
 
+	"github.com/xhd2015/doctest/session"
+
 	"github.com/xhd2015/tty-watch/cli"
 )
 
-func Setup(t *testing.T, req *Request) error {
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "run-config"
 	req.Config = cli.Config{
 		Command: "send",

@@ -8,9 +8,14 @@ harness -> tty-watch run --detach sleep 120 -> session-id: session-N\n -> exit 0
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-detach-prints-session-id"
 	req.RunCommand = []string{"sleep", "120"}
 	return nil

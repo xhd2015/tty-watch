@@ -12,9 +12,14 @@ keyboard protocol bytes iTerm2 delivers while kitty mode remains active after in
 cleanup (`\x1b[?0u` without `\x1b[<u` pop).
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-ctrl-c-detaches-grok-modes-post-detach-kitty-garbage"
 	return nil
 }

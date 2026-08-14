@@ -20,9 +20,14 @@ EncodeSGRClick(row, col, btn, release) -> ESC[<btn;col+1;row+1M [+ m if release]
 3. Assert compares exact bytes.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "encode"
 	return nil
 }

@@ -13,9 +13,14 @@ Reproduces user report: detached `grok` session snapshot shows changelog-only sm
 instead of the full bordered UI that `attach`/`watch` mirror.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "snapshot-grok-like-changelog-screen"
 	return nil
 }

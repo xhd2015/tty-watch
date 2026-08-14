@@ -12,9 +12,14 @@ Reproduces user report: `tty-watch run --session-id codex codex` then
 `tty-watch snapshot codex` prints overlapping MCP boot lines and duplicate UI boxes.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "snapshot-codex-like-single-screen"
 	return nil
 }

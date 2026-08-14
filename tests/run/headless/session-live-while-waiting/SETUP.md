@@ -8,9 +8,14 @@ harness pipe -> tty-watch run --headless sleep 120 -> list shows sleep 120
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-headless-session-live-while-waiting"
 	req.RunCommand = []string{"sleep", "120"}
 	return nil

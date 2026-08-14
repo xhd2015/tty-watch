@@ -12,9 +12,14 @@ the terminal mode sequences grok emits (`1049h`, mouse tracking, `2004h`, `?u`),
 then sends the kitty keyboard protocol Ctrl-C bytes a real terminal produces.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-ctrl-c-detaches-grok-modes-kitty-ctrl-c"
 	return nil
 }

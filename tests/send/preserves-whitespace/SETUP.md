@@ -8,9 +8,14 @@ harness -> detached cat capture -> tty-watch send session-N "  spaced  " -> capt
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "send-preserves-whitespace"
 	req.SendMessage = "  spaced  "
 	return nil

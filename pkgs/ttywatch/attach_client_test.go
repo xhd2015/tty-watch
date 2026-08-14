@@ -26,6 +26,16 @@ func TestNormalizeTTYOutput(t *testing.T) {
 			in:   "MARKER_A\rMARKER_B\n",
 			want: "MARKER_A\rMARKER_B\r\n",
 		},
+		{
+			name: "collapse blank before exit marker",
+			in:   "yes\r\n\r\n[Terminal exited]\r\n",
+			want: "yes\r\n[Terminal exited]\r\n",
+		},
+		{
+			name: "collapse blank before exit marker after lf expand",
+			in:   "yes\n\n[Terminal exited]\n",
+			want: "yes\r\n[Terminal exited]\r\n",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

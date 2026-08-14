@@ -8,9 +8,14 @@ tty-watch send <id> --click --row 10 --col 67 --no-release
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.HasClickRow = true
 	req.ClickRow = 10
 	req.HasClickCol = true

@@ -8,9 +8,14 @@ harness PTY -> tty-watch true -> host exits -> registry empty
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-exit-clean"
 	req.RunCommand = []string{"true"}
 	return nil

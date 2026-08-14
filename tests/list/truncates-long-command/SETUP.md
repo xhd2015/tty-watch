@@ -8,9 +8,14 @@ harness -> detached bash -c long echo -> tty-watch list -> COMMAND ends with ...
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "list-fields"
 	req.RunCommand = []string{
 		"bash", "-c",

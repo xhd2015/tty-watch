@@ -17,9 +17,14 @@ stdin/resize/send -> inputCh -> single input loop per session
 - Detach uses Ctrl-] (`\x1d`), same as `run`.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.Bin == "" {
 		t.Fatalf("attach setup: tty-watch binary not built")
 	}

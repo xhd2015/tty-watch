@@ -8,9 +8,14 @@ tty-watch send session-999 "hi" -> error: session not found
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "send-missing"
 	req.SendID = "session-99999"
 	req.SendMessage = "hi"

@@ -29,9 +29,14 @@ tty-watch list -> session live while headless parent blocked
 - Default non-headless `run/` leaves remain unchanged (writer attach, silent host).
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.Bin == "" {
 		t.Fatalf("headless setup: tty-watch binary not built (root Setup skipped?)")
 	}

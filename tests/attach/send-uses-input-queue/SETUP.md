@@ -8,9 +8,14 @@ harness -> detached cat capture -> attach holds session -> send marker -> captur
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "attach-send-input-queue"
 	req.SendMessage = "ATTACH_SEND_QUEUE_MARKER"
 	return nil

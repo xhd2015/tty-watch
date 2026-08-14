@@ -8,9 +8,14 @@ harness -> tty-watch run --detach sh -c 'echo DETACH_MARKER; sleep 60' -> exit 0
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-detach-no-attach-output"
 	req.RunCommand = []string{"sh", "-c", "echo DETACH_MARKER; sleep 60"}
 	return nil

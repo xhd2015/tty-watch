@@ -12,9 +12,14 @@ cli.Main(["send"] | ["send", sid], …) -> non-nil error
 - No click/query flags; pure text-mode missing-args path.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "cli"
 	// Leaves set Args to ["send"] or ["send", sid] without message/mode flags.
 	return nil

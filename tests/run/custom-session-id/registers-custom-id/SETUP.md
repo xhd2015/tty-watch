@@ -8,9 +8,14 @@ harness PTY -> tty-watch run --session-id test-with-grok sleep 300 -> \x1d -> li
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-custom-registers"
 	req.CustomSessionID = "test-with-grok"
 	req.RunCommand = []string{"sleep", "300"}

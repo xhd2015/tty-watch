@@ -12,9 +12,14 @@ kitty keyboard protocol with `\x1b[?u` (push). `\x1b[?0u` alone does not pop tha
 in iTerm2; detach cleanup must emit `\x1b[<u`.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "unit-observer-detach-kitty-pop-cleanup"
 	return nil
 }

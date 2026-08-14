@@ -12,9 +12,14 @@ while stdin was still in raw mode (`defer term.Restore`), so iTerm echoes/displa
 disable sequence and kitty keyboard mode stays active.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "unit-observer-detach-stdin-before-cleanup"
 	return nil
 }

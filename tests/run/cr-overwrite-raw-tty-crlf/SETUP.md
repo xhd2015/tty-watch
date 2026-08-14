@@ -8,9 +8,14 @@ harness PTY -> tty-watch run sh -c "printf 'MARKER_A\\rMARKER_B\\n'"
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-cr-overwrite"
 	req.RunCommand = []string{"sh", "-c", `printf 'MARKER_A\rMARKER_B\n'`}
 	return nil

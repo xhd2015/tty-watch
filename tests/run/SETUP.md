@@ -20,9 +20,14 @@ harness PTY -> tty-watch run <cmd> -> embedded ptywrap -> registry session-N.jso
 3. Assert checks registry state, host silence, or child-visible output.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	if req.Bin == "" {
 		t.Fatalf("run setup: tty-watch binary not built (root Setup skipped?)")
 	}

@@ -13,9 +13,14 @@ sequences onto the watching screen. Watch is readonly — all input except Ctrl-
 must be silently dropped with no local echo.
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "watch-readonly-tty-no-local-echo"
 	return nil
 }

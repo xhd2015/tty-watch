@@ -7,9 +7,14 @@ EncodeSGRClick(10, 67, 0, true) -> \x1b[<0;68;11M\x1b[<0;68;11m
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.EncodeRow = 10
 	req.EncodeCol = 67
 	req.EncodeBtn = 0

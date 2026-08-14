@@ -9,9 +9,14 @@ cli.ParseArgs(["send", "sid", "--click", "--row", "10", "--col", "67"])
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Mode = "parse-args"
 	req.Args = []string{"send", "sid", "--click", "--row", "10", "--col", "67"}
 	return nil

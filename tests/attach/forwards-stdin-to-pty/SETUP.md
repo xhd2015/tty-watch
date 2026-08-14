@@ -8,9 +8,14 @@ harness -> detached cat -> tty-watch attach <id> + stdin -> ATTACH_STDIN_MARKER 
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "attach-forwards-stdin"
 	req.AttachInput = "ATTACH_STDIN_MARKER"
 	return nil

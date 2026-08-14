@@ -8,9 +8,14 @@ harness -> run sleep (writer) -> watch + attach -> attach writes -> run + watch 
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "attach-visible-while-run"
 	req.RunCommand = []string{"sleep", "300"}
 	req.AttachInput = "ATTACH_WRITE_MARKER_A"

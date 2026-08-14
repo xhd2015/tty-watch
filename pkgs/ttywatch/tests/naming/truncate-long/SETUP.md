@@ -16,9 +16,12 @@ argv [codex + 40 flag pairs]
 import (
 	"fmt"
 	"testing"
+
+	"github.com/xhd2015/doctest/session"
 )
 
-func Setup(t *testing.T, req *Request) error {
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	argv := []string{"codex"}
 	for i := 0; i < 40; i++ {
 		argv = append(argv,

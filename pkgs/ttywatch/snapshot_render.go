@@ -380,8 +380,13 @@ func shouldMergeSnapshotWrappedLineCols(prev, next string, cols int) bool {
 	}
 	prevRunes := []rune(prev)
 	nextRunes := []rune(next)
-	// Not a terminal wrap if previous row is far from full width.
-	if len(prevRunes) < cols-1 {
+	// Hard-wrap rows fill the cell width. Also accept long soft-wraps when
+	// reported cols is inflated vs the actual wrap (e.g. session resized to
+	// 100 but content was painted at 80): still join rows >= 72 runes so a
+	// wrapped WIDE_LINE_MARKER_ line reassembly works. Short status rows
+	// (<< 72) stay separate.
+	const minSoftWrapRunes = 72
+	if len(prevRunes) < cols-1 && len(prevRunes) < minSoftWrapRunes {
 		return false
 	}
 	last := prevRunes[len(prevRunes)-1]

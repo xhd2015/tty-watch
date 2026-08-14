@@ -8,9 +8,14 @@ harness pipe -> tty-watch run --headless --session-id my-job sleep 120
 ```
 
 ```go
-import "testing"
+import (
+	"testing"
 
-func Setup(t *testing.T, req *Request) error {
+	"github.com/xhd2015/doctest/session"
+)
+
+func Setup(t *testing.T, d *session.Doctest, req *Request) error {
+	_ = d
 	req.Phase = "run-headless-with-custom-session-id"
 	req.CustomSessionID = "my-job"
 	req.RunCommand = []string{"sleep", "120"}
