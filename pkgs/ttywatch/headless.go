@@ -120,13 +120,8 @@ func HeadlessRun(ctx context.Context, opts HeadlessRunOptions) (*HeadlessRunResu
 	var sessionID string
 	var release func()
 	if opts.SessionID != "" {
-		release, err = ReserveCustomSessionID(cfg, opts.SessionID)
-		// Keep-alive zombie after agent /exit still holds the id (reachable serve,
-		// command_exited). Reclaim once and retry so resume/reopen can re-use it.
-		if err != nil && isSessionIDAlreadyInUse(err) && shouldReclaimZombieForReserve(cfg, opts.SessionID) {
-			_ = ReclaimSessionID(cfg, opts.SessionID)
-			release, err = ReserveCustomSessionID(cfg, opts.SessionID)
-		}
+		// Keep-alive zombie / leftover claim: reclaim-once inside Reclaiming helper.
+		release, err = ReserveCustomSessionIDReclaiming(cfg, opts.SessionID)
 		if err != nil {
 			return nil, err
 		}

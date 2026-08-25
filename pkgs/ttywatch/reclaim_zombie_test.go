@@ -2,6 +2,9 @@ package ttywatch
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -42,4 +45,29 @@ func TestShouldReclaimZombieForReserve_missingEntry(t *testing.T) {
 	if !shouldReclaimZombieForReserve(cfg, "no-such") {
 		t.Fatal("missing entry should reclaim (claim-only hold)")
 	}
+}
+
+func TestReserveCustomSessionIDReclaiming_aliveClaim(t *testing.T) {
+	dir := t.TempDir()
+	cfg := DefaultRegistryConfig(dir)
+	sid := "codex-status-usage"
+	regDir := RegistryDir(cfg)
+	if err := os.MkdirAll(regDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	claim := filepath.Join(regDir, "."+sid+".claim")
+	if err := os.WriteFile(claim, []byte(strconv.Itoa(os.Getpid())+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ReserveCustomSessionID(cfg, sid); err == nil || !isSessionIDAlreadyInUse(err) {
+		t.Fatalf("plain reserve want already in use, got %v", err)
+	}
+
+	release, err := ReserveCustomSessionIDReclaiming(cfg, sid)
+	if err != nil {
+		t.Fatalf("Reclaiming: %v", err)
+	}
+	release()
+	clearSessionClaim(cfg, sid)
 }

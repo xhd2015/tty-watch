@@ -45,6 +45,19 @@ func shouldReclaimZombieForReserve(cfg RegistryConfig, sessionID string) bool {
 	return false
 }
 
+// ReserveCustomSessionIDReclaiming is like ReserveCustomSessionID, but when the
+// id is held by a reclaimable leftover (claim-only / zombie keep-alive), it
+// reclaim-once and reserves again. A truly live session still fails with
+// "already in use" (no steal). Used by headless Run and Codex FetchStatus.
+func ReserveCustomSessionIDReclaiming(cfg RegistryConfig, sessionID string) (func(), error) {
+	release, err := ReserveCustomSessionID(cfg, sessionID)
+	if err != nil && isSessionIDAlreadyInUse(err) && shouldReclaimZombieForReserve(cfg, sessionID) {
+		_ = ReclaimSessionID(cfg, sessionID)
+		release, err = ReserveCustomSessionID(cfg, sessionID)
+	}
+	return release, err
+}
+
 // ReclaimSessionID forcefully frees a session id held by a (possibly zombie)
 // keep-alive serve so the id can be re-reserved. Best-effort: delete via
 // ptywrap when reachable, terminate the serve PID (never self), then remove
