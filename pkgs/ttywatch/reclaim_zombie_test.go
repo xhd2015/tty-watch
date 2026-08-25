@@ -60,6 +60,7 @@ func TestReserveCustomSessionIDReclaiming_aliveClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Plain reserve must fail while the alive claim is present.
 	if _, err := ReserveCustomSessionID(cfg, sid); err == nil || !isSessionIDAlreadyInUse(err) {
 		t.Fatalf("plain reserve want already in use, got %v", err)
 	}
