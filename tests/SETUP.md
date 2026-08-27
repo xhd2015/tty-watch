@@ -295,6 +295,8 @@ func mapPhaseResp(r *ttywatchtest.Response, err error) (*Response, error) {
 		LockPath:                           r.LockPath,
 		LockHolderPID:                      r.LockHolderPID,
 		LockHolderMarker:                   r.LockHolderMarker,
+		CommandAlive:                       r.CommandAlive,
+		CommandPID:                         r.CommandPID,
 	}
 	if r.ExitCode != 0 {
 		msg := strings.TrimSpace(r.Stderr)

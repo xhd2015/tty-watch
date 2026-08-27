@@ -88,16 +88,22 @@ type Response struct {
 	LockPath         string
 	LockHolderPID    int
 	LockHolderMarker string
+	// CommandAlive is true when the PTY child (registry command_pid) is still
+	// running after the scenario's teardown probe. Used by serve-death orphan
+	// leaves: desired product leaves this false even if the child ignored HUP.
+	CommandAlive bool
+	CommandPID   int
 }
 
 // RegistryEntry mirrors the tty-watch registry JSON shape for harness helpers.
 type RegistryEntry struct {
-	SessionID  string   `json:"session_id"`
-	ListenAddr string   `json:"listen_addr"`
-	PID        int      `json:"pid"`
-	CreatedAt  string   `json:"created_at"`
-	Command    []string `json:"command"`
-	Cwd        string   `json:"cwd,omitempty"`
+	SessionID   string   `json:"session_id"`
+	ListenAddr  string   `json:"listen_addr"`
+	PID         int      `json:"pid"`
+	CreatedAt   string   `json:"created_at"`
+	Command     []string `json:"command"`
+	Cwd         string   `json:"cwd,omitempty"`
+	CommandPID  int      `json:"command_pid,omitempty"`
 }
 
 var (
@@ -233,6 +239,8 @@ func Run(t *testing.T, req *Request) (*Response, error) {
 		return phaseKillMissing(t, req)
 	case "kill-stale":
 		return phaseKillStale(t, req)
+	case "kill-sigkill-serve-no-orphan-child":
+		return phaseKillSigkillServeNoOrphanChild(t, req)
 	case "error-cmd":
 		return phaseErrorCmd(t, req)
 	case "send-injects-verbatim", "send-no-suffix", "send-preserves-whitespace":
@@ -1018,6 +1026,14 @@ func killPIDs(pids []int) {
 		}
 		_ = syscall.Kill(pid, syscall.SIGKILL)
 	}
+}
+
+func processAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := syscall.Kill(pid, 0)
+	return err == nil
 }
 
 func phaseRunCROverwrite(t *testing.T, req *Request) (*Response, error) {
@@ -2392,6 +2408,130 @@ func phaseKillStale(t *testing.T, req *Request) (*Response, error) {
 		ExitCode:       code,
 		RegistryExists: RegistryExists(req.TTYWatchHome, staleID),
 	}, nil
+}
+
+// phaseKillSigkillServeNoOrphanChild reproduces the Marcus PTY exhaustion leak:
+// a detached session whose PTY child ignores SIGHUP must not remain as PPID=1
+// after the __serve process is hard-killed. Desired product: child is gone
+// (e.g. PDEATHSIG / process-group reap at spawn). Today the HUP-immune child
+// survives with the slave FD open and consumes a PTY slot.
+func phaseKillSigkillServeNoOrphanChild(t *testing.T, req *Request) (*Response, error) {
+	sessionID := req.CustomSessionID
+	if sessionID == "" {
+		sessionID = "sigkill-no-orphan"
+	}
+	readyPath := filepath.Join(req.TTYWatchHome, "hup-immune-ready-"+sessionID)
+	sticky, err := writeHUPImmuneStickyChild(req.TTYWatchHome, sessionID, readyPath)
+	if err != nil {
+		return nil, err
+	}
+	detachReq := *req
+	detachReq.CustomSessionID = sessionID
+	detachReq.RunCommand = []string{sticky}
+	dr := runDetachCLI(t, &detachReq, detachReq.RunCommand)
+	if dr.exitCode != 0 {
+		return &Response{
+			SessionID: sessionID,
+			ExitCode:  dr.exitCode,
+			Stdout:    dr.stdout,
+			Stderr:    dr.stderr,
+			Combined:  combineOutput(dr.stdout, dr.stderr),
+			Elapsed:   dr.elapsed,
+		}, nil
+	}
+	if dr.sessionID == "" {
+		dr.sessionID = sessionID
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	var entry *RegistryEntry
+	for time.Now().Before(deadline) {
+		entry, err = ReadRegistryEntry(req.TTYWatchHome, dr.sessionID)
+		if err == nil && entry.PID > 0 && entry.CommandPID > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if entry == nil || entry.PID <= 0 || entry.CommandPID <= 0 {
+		return nil, fmt.Errorf("registry missing serve/command pid for %s: %+v err=%v", dr.sessionID, entry, err)
+	}
+	servePID := entry.PID
+	cmdPID := entry.CommandPID
+	if !processAlive(servePID) {
+		return nil, fmt.Errorf("serve pid %d not alive before SIGKILL", servePID)
+	}
+	if !processAlive(cmdPID) {
+		return nil, fmt.Errorf("command pid %d not alive before SIGKILL", cmdPID)
+	}
+	// Wait until sticky has installed trap '' HUP (ready file). Otherwise a
+	// fast SIGKILL can reap the child before immunity and hide the leak.
+	readyDeadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(readyDeadline) {
+		if _, statErr := os.Stat(readyPath); statErr == nil {
+			break
+		}
+		if !processAlive(cmdPID) {
+			return nil, fmt.Errorf("command pid %d died before HUP immunity ready file", cmdPID)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, statErr := os.Stat(readyPath); statErr != nil {
+		return nil, fmt.Errorf("sticky child never created ready file %s: %w", readyPath, statErr)
+	}
+
+	if err := syscall.Kill(servePID, syscall.SIGKILL); err != nil {
+		return nil, fmt.Errorf("SIGKILL serve %d: %w", servePID, err)
+	}
+
+	// Allow kernel reparent + any death-signal delivery. Desired: child dies.
+	probeDeadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(probeDeadline) {
+		if !processAlive(cmdPID) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	cmdAlive := processAlive(cmdPID)
+	serveAlive := processAlive(servePID)
+	if cmdAlive {
+		t.Cleanup(func() { killPIDs([]int{cmdPID}) })
+	}
+	t.Logf("sigkill-orphan-probe servePID=%d serveAlive=%v cmdPID=%d cmdAlive=%v home=%s",
+		servePID, serveAlive, cmdPID, cmdAlive, req.TTYWatchHome)
+
+	ids, _ := ListRegistryIDs(req.TTYWatchHome)
+	return &Response{
+		SessionID:      dr.sessionID,
+		ExitCode:       0,
+		Stdout:         dr.stdout,
+		Stderr:         dr.stderr,
+		Combined:       combineOutput(dr.stdout, dr.stderr),
+		Elapsed:        dr.elapsed,
+		RegistryExists: RegistryExists(req.TTYWatchHome, dr.sessionID),
+		RegistryIDs:    ids,
+		SessionRunning: serveAlive, // __serve should be gone after SIGKILL
+		CommandPID:     cmdPID,
+		CommandAlive:   cmdAlive, // must be false when product reaps orphans
+	}, nil
+}
+
+func writeHUPImmuneStickyChild(home, sessionID, readyPath string) (string, error) {
+	if err := os.MkdirAll(home, 0755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(home, "hup-immune-sticky-"+sessionID+".sh")
+	// Ignore SIGHUP so closing the PTY master (serve death) does not reap us —
+	// matches interactive/tool children that keep the slave FD open and leak
+	// kern.tty.ptmx slots (crime-scene: orphaned ptywrap bash trees).
+	script := "#!/bin/bash\n" +
+		"trap '' HUP\n" +
+		"export TTY_WATCH_ORPHAN_MARKER=" + sessionID + "\n" +
+		"touch " + shellQuote(readyPath) + "\n" +
+		"while true; do sleep 60; done\n"
+	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func phaseErrorCmd(t *testing.T, req *Request) (*Response, error) {

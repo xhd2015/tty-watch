@@ -42,6 +42,7 @@ encode / run-config / parse-args). Live session phases keep the e2e harness
 - `list` aligned table SESSION/UPTIME/WATCH/ATTACHED/COMMAND; prunes unreachable.
 - `watch` observer (raw bytes, no stdin forward); `attach` multi-writer; `snapshot`
   sanitized; `kill` terminates / prunes.
+- Hard death of `__serve__` must not leave an HUP-immune PTY child (orphan slot).
 - `send` text / `--click` / `--query-cursor` exclusive modes; flag validation
   before registry lookup.
 - Contract Mode leaves call `cli.Main` / `cli.Run` / `cli.ParseArgs` /
@@ -76,6 +77,8 @@ encode / run-config / parse-args). Live session phases keep the e2e harness
  +-- attach/                           # Phase e2e
  +-- snapshot/                         # Phase e2e
  +-- kill/                             # Phase e2e
+ |    +-- terminates-detached/ prunes-unreachable/ unknown-session/
+ |    +-- serve-sigkill-no-orphan-child/  (LEAF)  SIGKILL __serve__ must reap HUP-immune PTY child
  |
  +-- send/
  |    +-- injects-verbatim/ no-suffix/ preserves-whitespace/ …
@@ -213,6 +216,8 @@ type Response struct {
 	LockPath                 string
 	LockHolderPID            int
 	LockHolderMarker         string
+	CommandAlive             bool // PTY child still running after serve-death probe
+	CommandPID               int
 }
 
 func errMsgOf(err error) string {
