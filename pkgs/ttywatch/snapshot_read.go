@@ -41,13 +41,26 @@ func ReadSnapshot(listenAddr, sessionID string) (frame string, scrollback string
 	return frame, scrollback, cols, rows, nil
 }
 
+// SnapshotTextOptions controls SnapshotTextOpts rendering.
+type SnapshotTextOptions struct {
+	// PreserveTrailingSpace keeps end-of-line spaces that normal SnapshotText
+	// trims. Occupy probes need this so ExactlyOneMoreSpace can see a typed or
+	// injected trailing space (e.g. "› a " vs "› a").
+	PreserveTrailingSpace bool
+}
+
 // SnapshotText returns rendered printable snapshot text for a live session.
 func SnapshotText(listenAddr, sessionID string) (string, error) {
+	return SnapshotTextOpts(listenAddr, sessionID, SnapshotTextOptions{})
+}
+
+// SnapshotTextOpts is SnapshotText with rendering options.
+func SnapshotTextOpts(listenAddr, sessionID string, opts SnapshotTextOptions) (string, error) {
 	frame, scrollback, cols, rows, err := ReadSnapshot(listenAddr, sessionID)
 	if err != nil {
 		return "", err
 	}
-	return RenderSnapshotOutput(frame, scrollback, cols, rows), nil
+	return RenderSnapshotOutputOpts(frame, scrollback, cols, rows, opts), nil
 }
 
 // primeSnapshotText fetches a short-deadline printable snapshot for web attach priming.

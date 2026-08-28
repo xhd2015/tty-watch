@@ -41,10 +41,15 @@ func needsVTRender(data []byte) bool {
 // RenderSnapshotOutput converts a ptywrap screen snapshot frame and/or raw scrollback
 // into printable snapshot text, matching the screen attach pipeline used by run.
 func RenderSnapshotOutput(frame, scrollback string, cols, rows int) string {
-	return renderSnapshotOutput(frame, scrollback, cols, rows)
+	return RenderSnapshotOutputOpts(frame, scrollback, cols, rows, SnapshotTextOptions{})
 }
 
-func renderSnapshotOutput(frame, scrollback string, cols, rows int) string {
+// RenderSnapshotOutputOpts is RenderSnapshotOutput with SnapshotTextOptions.
+func RenderSnapshotOutputOpts(frame, scrollback string, cols, rows int, opts SnapshotTextOptions) string {
+	return renderSnapshotOutput(frame, scrollback, cols, rows, opts.PreserveTrailingSpace)
+}
+
+func renderSnapshotOutput(frame, scrollback string, cols, rows int, preserveTrailing bool) string {
 	if cols <= 0 {
 		cols = 80
 	}
@@ -62,7 +67,7 @@ func renderSnapshotOutput(frame, scrollback string, cols, rows int) string {
 			// Live ptywrap screen frames use the same vt10x replay as watch/attach
 			// (RenderObserverFrame / screenSnapshotToText). CUP-line ghost filtering
 			// is for scrollback smear only and drops grok conversation rows.
-			if rendered, ok := screenSnapshotToText(frameData, infCols, infRows); ok {
+			if rendered, ok := screenSnapshotToTextPreserve(frameData, infCols, infRows, preserveTrailing); ok {
 				out := mergePlainTextPrefix(strings.TrimRight(string(rendered), "\n"), scrollbackData)
 				if scrollback == "" || !snapshotMissingPlainPrefix(out, scrollbackData) {
 					return out
@@ -73,7 +78,7 @@ func renderSnapshotOutput(frame, scrollback string, cols, rows int) string {
 	if scrollback != "" {
 		data := preprocessSnapshotScrollback(scrollbackData)
 		useRows := adequateSnapshotRows(data, cols, rows)
-		if text, ok := scrollbackToScreenText(data, cols, useRows); ok {
+		if text, ok := scrollbackToScreenTextPreserve(data, cols, useRows, preserveTrailing); ok {
 			out := mergePlainTextPrefix(strings.TrimRight(string(text), "\n"), scrollbackData)
 			if !snapshotMissingPlainPrefix(out, scrollbackData) {
 				return out
@@ -231,10 +236,14 @@ func injectClearOnAltScreen2026(data []byte) []byte {
 // scrollbackToScreenText replays accumulated scrollback like ptywrap screen attach,
 // then extracts the final visible screen as plain text.
 func scrollbackToScreenText(scrollback []byte, cols, rows int) ([]byte, bool) {
+	return scrollbackToScreenTextPreserve(scrollback, cols, rows, false)
+}
+
+func scrollbackToScreenTextPreserve(scrollback []byte, cols, rows int, preserveTrailing bool) ([]byte, bool) {
 	if len(scrollback) == 0 || !needsVTRender(scrollback) {
 		return nil, false
 	}
-	return screenSnapshotToText(scrollback, cols, rows)
+	return screenSnapshotToTextPreserve(scrollback, cols, rows, preserveTrailing)
 }
 
 // RenderObserverFrame converts observer-mode PTY bytes to visible text without CSI/C0 leaks.
@@ -268,6 +277,10 @@ func ScreenSnapshotToText(data []byte, cols, rows int) ([]byte, bool) {
 }
 
 func screenSnapshotToText(data []byte, cols, rows int) ([]byte, bool) {
+	return screenSnapshotToTextPreserve(data, cols, rows, false)
+}
+
+func screenSnapshotToTextPreserve(data []byte, cols, rows int, preserveTrailing bool) ([]byte, bool) {
 	if cols <= 0 {
 		cols = 80
 	}
@@ -279,15 +292,15 @@ func screenSnapshotToText(data []byte, cols, rows int) ([]byte, bool) {
 	if _, err := vt.Write(data); err != nil {
 		return nil, false
 	}
-	return renderVTStateToText(vt, cols, rows)
+	return renderVTStateToTextPreserve(vt, cols, rows, preserveTrailing)
 }
 
 // RenderVTStateToText extracts printable lines from a vt10x terminal state.
 func RenderVTStateToText(vt vt10x.Terminal, cols, rows int) ([]byte, bool) {
-	return renderVTStateToText(vt, cols, rows)
+	return renderVTStateToTextPreserve(vt, cols, rows, false)
 }
 
-func renderVTStateToText(vt vt10x.Terminal, cols, rows int) ([]byte, bool) {
+func renderVTStateToTextPreserve(vt vt10x.Terminal, cols, rows int, preserveTrailing bool) ([]byte, bool) {
 	if cols <= 0 {
 		cols = 80
 	}
@@ -303,7 +316,7 @@ func renderVTStateToText(vt vt10x.Terminal, cols, rows int) ([]byte, bool) {
 	// (status dashboards, intentional \n\n) survive snapshot without 24-line padding.
 	raw := make([]string, 0, rows)
 	for y := 0; y < rows; y++ {
-		line := normalizeSnapshotPrintableLine(renderSnapshotTextLine(vt, cols, y))
+		line := normalizeSnapshotPrintableLine(renderSnapshotTextLine(vt, cols, y, preserveTrailing))
 		raw = append(raw, line)
 	}
 	first, last := -1, -1
@@ -319,7 +332,7 @@ func renderVTStateToText(vt vt10x.Terminal, cols, rows int) ([]byte, bool) {
 	if first >= 0 {
 		lines = raw[first : last+1]
 	}
-	lines = mergeSnapshotWrappedLinesCols(lines, cols)
+	lines = mergeSnapshotWrappedLinesCols(lines, cols, preserveTrailing)
 	// Drop short non-UI leftovers left by partial CUP redraws (e.g. grok
 	// changelog boot "Quit q" on the row under the ctrl+q menu after \033[K
 	// only cleared the menu row). Keeps denser conversation lines intact.
@@ -363,17 +376,19 @@ func isLiveScreenGhostLine(line string) bool {
 }
 
 func shouldMergeSnapshotWrappedLine(prev, next string) bool {
-	return shouldMergeSnapshotWrappedLineCols(prev, next, 80)
+	return shouldMergeSnapshotWrappedLineCols(prev, next, 80, false)
 }
 
 // shouldMergeSnapshotWrappedLineCols joins only hard-wraps: prev must look
 // full-width (near cols). Short consecutive status rows like "pause ... on"
 // + "quiet ..." must not merge even when letter-to-lowercase would match.
-func shouldMergeSnapshotWrappedLineCols(prev, next string, cols int) bool {
+func shouldMergeSnapshotWrappedLineCols(prev, next string, cols int, preserveTrailing bool) bool {
 	if cols <= 0 {
 		cols = 80
 	}
-	prev = strings.TrimRight(prev, " \t")
+	if !preserveTrailing {
+		prev = strings.TrimRight(prev, " \t")
+	}
 	next = strings.TrimLeft(next, " \t")
 	if prev == "" || next == "" {
 		return false
@@ -398,18 +413,22 @@ func shouldMergeSnapshotWrappedLineCols(prev, next string, cols int) bool {
 }
 
 func mergeSnapshotWrappedLines(lines []string) []string {
-	return mergeSnapshotWrappedLinesCols(lines, 80)
+	return mergeSnapshotWrappedLinesCols(lines, 80, false)
 }
 
-func mergeSnapshotWrappedLinesCols(lines []string, cols int) []string {
+func mergeSnapshotWrappedLinesCols(lines []string, cols int, preserveTrailing bool) []string {
 	if len(lines) == 0 {
 		return lines
 	}
 	out := []string{lines[0]}
 	for i := 1; i < len(lines); i++ {
 		line := lines[i]
-		if shouldMergeSnapshotWrappedLineCols(out[len(out)-1], line, cols) {
-			out[len(out)-1] = strings.TrimRight(out[len(out)-1], " \t") + strings.TrimLeft(line, " \t")
+		if shouldMergeSnapshotWrappedLineCols(out[len(out)-1], line, cols, preserveTrailing) {
+			left := out[len(out)-1]
+			if !preserveTrailing {
+				left = strings.TrimRight(left, " \t")
+			}
+			out[len(out)-1] = left + strings.TrimLeft(line, " \t")
 			continue
 		}
 		out = append(out, line)
@@ -446,7 +465,7 @@ func renderScreenSnapshotFrame(scrollback []byte, cols, rows int) ([]byte, bool)
 	}
 	out.WriteString("\x1b[0m\x1b[H\x1b[2J")
 	for y := 0; y < rows; y++ {
-		line := renderSnapshotTextLine(vt, cols, y)
+		line := renderSnapshotTextLine(vt, cols, y, false)
 		if line == "" {
 			continue
 		}
@@ -534,12 +553,16 @@ func isSnapshotFrameGhostRow(prevRow, row, nextRow int, line string) bool {
 }
 
 func screenSnapshotFrameToText(data []byte, cols, rows int) ([]byte, bool) {
+	return screenSnapshotFrameToTextPreserve(data, cols, rows, false)
+}
+
+func screenSnapshotFrameToTextPreserve(data []byte, cols, rows int, preserveTrailing bool) ([]byte, bool) {
 	if !bytes.HasPrefix(data, screenSnapshotMarker) || !bytes.Contains(data, []byte("\x1b[2J")) {
 		return nil, false
 	}
 	cups := parseSnapshotFrameCUPLines(data)
 	if len(cups) == 0 {
-		return screenSnapshotToText(data, cols, rows)
+		return screenSnapshotToTextPreserve(data, cols, rows, preserveTrailing)
 	}
 	var lines []string
 	for i, cup := range cups {
@@ -553,14 +576,20 @@ func screenSnapshotFrameToText(data []byte, cols, rows int) ([]byte, bool) {
 		if isSnapshotFrameGhostRow(prevRow, cup.row, nextRow, cup.text) {
 			continue
 		}
-		line := normalizeSnapshotPrintableLine(strings.TrimRight(cup.text, " \t\r\n"))
+		trimmed := cup.text
+		if preserveTrailing {
+			trimmed = strings.TrimRight(trimmed, "\r\n")
+		} else {
+			trimmed = strings.TrimRight(trimmed, " \t\r\n")
+		}
+		line := normalizeSnapshotPrintableLine(trimmed)
 		if line == "" {
 			continue
 		}
 		lines = append(lines, line)
 	}
 	if len(lines) == 0 {
-		return screenSnapshotToText(data, cols, rows)
+		return screenSnapshotToTextPreserve(data, cols, rows, preserveTrailing)
 	}
 	return []byte(strings.Join(lines, "\n") + "\n"), true
 }
@@ -577,7 +606,7 @@ func normalizeSnapshotPrintableLine(line string) string {
 	}, line)
 }
 
-func renderSnapshotTextLine(vt vt10x.Terminal, cols, y int) string {
+func renderSnapshotTextLine(vt vt10x.Terminal, cols, y int, preserveTrailing bool) string {
 	runes := make([]rune, cols)
 	lastNonSpace := -1
 	for x := 0; x < cols; x++ {
@@ -590,8 +619,20 @@ func renderSnapshotTextLine(vt vt10x.Terminal, cols, y int) string {
 			lastNonSpace = x
 		}
 	}
-	if lastNonSpace < 0 {
+	end := lastNonSpace
+	if preserveTrailing {
+		// Cell grids pad with spaces to cols; a typed trailing space is only
+		// distinguishable via the cursor column on this row.
+		cursor := vt.Cursor()
+		if cursor.Y == y && cursor.X-1 > end {
+			end = cursor.X - 1
+			if end >= cols {
+				end = cols - 1
+			}
+		}
+	}
+	if end < 0 {
 		return ""
 	}
-	return string(runes[:lastNonSpace+1])
+	return string(runes[:end+1])
 }
