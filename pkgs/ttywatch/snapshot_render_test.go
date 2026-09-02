@@ -243,6 +243,41 @@ func TestScreenSnapshotFrameToText_preserveTrailingSpace(t *testing.T) {
 	}
 }
 
+// TestRenderSnapshotOutput_usableFrameIgnoresSlidingScrollbackPrefix locks the
+// idle SoftExit fix: identical live frames with different scrollback plain
+// prefixes (ring head slide after SPACE+DEL) must yield identical SnapshotText.
+func TestRenderSnapshotOutput_usableFrameIgnoresSlidingScrollbackPrefix(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("\x1b[?25l")
+	b.WriteString("\x1b[2J")
+	b.WriteString("\x1b[1;1H› Ask Codex to do anything")
+	b.WriteString("\x1b[2;1H  gpt-5.6-luna max")
+	frame := b.String()
+	if !isScreenSnapshotFrame([]byte(frame)) {
+		t.Fatal("fixture must be a usable screen-snapshot frame")
+	}
+
+	sbRest := "old-head-history\nmore\n\x1b[?2026h\x1b[1;1Hignored"
+	sbAfterDEL := "new-head-after-ring-slide\n\x1b[?2026h\x1b[1;1Hignored"
+
+	rest := RenderSnapshotOutput(frame, sbRest, 80, 24)
+	after := RenderSnapshotOutput(frame, sbAfterDEL, 80, 24)
+	if rest != after {
+		t.Fatalf("usable frame must ignore sliding scrollback prefix; rest=%q after=%q", rest, after)
+	}
+	if strings.Contains(rest, "old-head-history") || strings.Contains(rest, "new-head-after-ring-slide") {
+		t.Fatalf("scrollback plain prefix must not appear in frame render, got %q", rest)
+	}
+	if !strings.Contains(rest, "Ask Codex to do anything") {
+		t.Fatalf("frame content missing, got %q", rest)
+	}
+
+	frameOnly := RenderSnapshotOutput(frame, "", 80, 24)
+	if rest != frameOnly {
+		t.Fatalf("frame+scrollback must equal frame-only; got %q vs %q", rest, frameOnly)
+	}
+}
+
 func TestRenderSnapshotOutputOpts_preserveTrailingSpace(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("\x1b[?25l")

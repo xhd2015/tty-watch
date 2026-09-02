@@ -14,10 +14,9 @@ import (
 
 // ReadSnapshot fetches the current screen frame for a live session via a single
 // attach_mode=snapshot WebSocket (no resize, does not claim writer). Scrollback is
-// also fetched best-effort so primary-screen TUIs that scroll the top warning off
-// the viewport (e.g. codex deprecation line) can still merge the plain-text
-// prefix during RenderSnapshotOutput. Rendering prefers the screen frame when
-// present; scrollback only supplies missing plain prefix / fallback.
+// also fetched best-effort as a fallback when no usable screen-snapshot frame is
+// available. When a usable frame is present, RenderSnapshotOutput renders the
+// frame only (no scrollback plain-prefix merge).
 //
 // Important: do not use attach_mode=screen here. "screen" claims the writer role;
 // closing that short-lived socket reaps the PTY child (stopChild on writer close
@@ -27,7 +26,7 @@ func ReadSnapshot(listenAddr, sessionID string) (frame string, scrollback string
 	if err != nil {
 		return "", "", cols, rows, err
 	}
-	// Best-effort scrollback for plain-prefix merge; ignore failures so a
+	// Best-effort scrollback for no-frame fallback; ignore failures so a
 	// healthy frame still produces a snapshot.
 	if sb, c, r, sbErr := readSnapshotScrollbackWithDeadline(listenAddr, sessionID, 2*time.Second); sbErr == nil {
 		scrollback = sb
@@ -309,8 +308,8 @@ func readSnapshotScrollbackWithDeadline(listenAddr, sessionID string, timeout ti
 
 func readSnapshotScrollbackOnce(listenAddr, sessionID string, deadline time.Time, cols, rows int) (chunk string, outCols, outRows int, done bool, err error) {
 	// observer mode delivers the raw scrollback ring (not the live-screen CUP
-	// frame). That retains primary-screen history scrolled off the 24-row
-	// viewport (codex deprecation warning), which mergePlainTextPrefix needs.
+	// frame). Used as RenderSnapshotOutput fallback when no usable screen
+	// frame is available.
 	conn, err := dialSnapshotWebSocket(listenAddr, sessionID, "observer")
 	if err != nil {
 		return "", cols, rows, false, err

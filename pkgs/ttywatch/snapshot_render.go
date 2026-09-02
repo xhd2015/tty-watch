@@ -67,11 +67,13 @@ func renderSnapshotOutput(frame, scrollback string, cols, rows int, preserveTrai
 			// Live ptywrap screen frames use the same vt10x replay as watch/attach
 			// (RenderObserverFrame / screenSnapshotToText). CUP-line ghost filtering
 			// is for scrollback smear only and drops grok conversation rows.
+			//
+			// Do not mergePlainTextPrefix onto a usable screen frame: the scrollback
+			// ring head slides on probe injects (SPACE/DEL) while the live frame is
+			// already restored, and prepending that unstable plain prefix made
+			// SnapshotText non-deterministic for idle full-string compare.
 			if rendered, ok := screenSnapshotToTextPreserve(frameData, infCols, infRows, preserveTrailing); ok {
-				out := mergePlainTextPrefix(strings.TrimRight(string(rendered), "\n"), scrollbackData)
-				if scrollback == "" || !snapshotMissingPlainPrefix(out, scrollbackData) {
-					return out
-				}
+				return strings.TrimRight(string(rendered), "\n")
 			}
 		}
 	}
